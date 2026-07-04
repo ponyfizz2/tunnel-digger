@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tunnel Digger</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #000; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+  }
+  #frame { position: relative; line-height: 0; }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #000;
+  }
+  /* optional CRT scanlines, toggled with C */
+  #scan {
+    position: absolute; inset: 0; pointer-events: none; display: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0)   0px,
+      rgba(0,0,0,0)   2px,
+      rgba(0,0,0,0.22) 3px
+    );
+  }
+  #scan.on { display: block; }
+  #hint {
+    color: #555; font: 11px monospace; margin-top: 10px; text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div id="frame">
+    <canvas id="game" width="224" height="288"></canvas>
+    <div id="scan"></div>
+  </div>
+  <div id="hint">ARROWS/WASD move &nbsp; SPACE/Z pump &nbsp; ENTER start &nbsp; P pause &nbsp; M mute &nbsp; C scanlines</div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
