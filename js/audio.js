@@ -14,6 +14,7 @@ export class AudioSys {
     this.ctx = null;
     this.muted = false;
     this.walking = false;
+    this.panic = false;
     this.noteIx = 0;
     this.nextNote = 0;
   }
@@ -73,19 +74,21 @@ export class AudioSys {
   }
 
   setWalking(w) { this.walking = w; }
+  setPanic(on) { this.panic = on; }
 
   // melody scheduler with a small lookahead; called every frame
   update() {
     if (!this.ctx || this.muted || !this.walking) return;
     const t = this.ctx.currentTime;
+    const step = this.panic ? 0.082 : STEP;
     if (this.nextNote < t) this.nextNote = t;
     while (this.nextNote < t + 0.15) {
       const f = MELODY[this.noteIx];
-      this.tone(f, STEP * 0.9, 'square', 0.10, this.nextNote - t);
+      this.tone(f * (this.panic ? 1.06 : 1), step * 0.9, 'square', 0.10, this.nextNote - t);
       const b = BASS[this.noteIx];
-      if (b) this.tone(b, STEP * 1.6, 'triangle', 0.14, this.nextNote - t);
+      if (b) this.tone(b, step * 1.6, 'triangle', 0.14, this.nextNote - t);
       this.noteIx = (this.noteIx + 1) % MELODY.length;
-      this.nextNote += STEP;
+      this.nextNote += step;
     }
   }
 

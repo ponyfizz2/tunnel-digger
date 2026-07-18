@@ -5,9 +5,9 @@
 // ---------------------------------------------------------------------------
 
 import {
-  LOGICAL_W, LOGICAL_H, CELL, COLS, ROWS, FIELD_Y,
-  PLAYER, ENEMY, SCORING, FRUITS, ROCKS_FOR_BONUS,
-  roundSpec, colX, rowY, cellOf, stratum, mulberry32,
+  LOGICAL_W, LOGICAL_H, COLS, ROWS,
+  PLAYER, ENEMY, SCORING, ROCKS_FOR_BONUS,
+  roundSpec, fruitTier, colX, rowY, cellOf, stratum, mulberry32,
 } from './config.js';
 import { SPR, drawText, drawTextC, drawSprite } from './sprites.js';
 import { World } from './world.js';
@@ -19,6 +19,17 @@ import { Pump } from './entities/pump.js';
 import { drawHUD } from './hud.js';
 
 const HS_KEY = 'tunnel-digger-hi';
+
+// A deliberate opening board: four separated enemy galleries and three
+// tactical rocks, matching the original round-one population and rhythm.
+// Later rounds are deterministic variations so they remain learnable.
+const OPENING_POCKETS = [
+  [[1, 3], [2, 3], [3, 3]],
+  [[9, 3], [10, 3], [11, 3]],
+  [[1, 10], [2, 10], [3, 10]],
+  [[9, 12], [10, 12], [11, 12]],
+];
+const OPENING_ROCKS = [[4, 5], [10, 6], [7, 10]];
 
 export class Game {
   constructor(ctx, audio, input, onToggleScan) {
@@ -80,20 +91,24 @@ export class Game {
     this.rocks = [];
     this.pump.reset();
     this.lastEnemyTimer = ENEMY.FLEE_DELAY;
+    this.audio.setPanic(false);
 
     const rng = mulberry32(round * 1013904223 + 77);
-    this.world.reset();
+    this.world.reset(round);
 
     // pre-dug spawn tunnel: surface straight down to the player start
     const spawn = [];
     for (let r = 0; r <= PLAYER.SPAWN_R; r++) spawn.push([PLAYER.SPAWN_C, r]);
     this.world.carveCellPath(spawn);
     this.player.respawn();
+    this.player.beginEntrance();
 
     // enemy pockets: short pre-dug tunnels away from the spawn shaft
     const total = this.spec.pookas + this.spec.fygars;
     for (let i = 0; i < total; i++) {
-      const cells = this.makePocket(rng);
+      const cells = round === 1 && OPENING_POCKETS[i]
+        ? OPENING_POCKETS[i]
+        : this.makePocket(rng);
       this.world.carveCellPath(cells);
       const [c, r] = cells[1];
       const dir = cells[0][0] !== cells[1][0] ? (rng() < 0.5 ? 'left' : 'right')
@@ -103,7 +118,10 @@ export class Game {
     }
 
     // rocks: buried in solid dirt with solid dirt beneath
-    let placed = 0, guard = 0;
+    if (round === 1) {
+      for (const [c, r] of OPENING_ROCKS) this.rocks.push(new Rock(this, c, r));
+    }
+    let placed = this.rocks.length, guard = 0;
     while (placed < this.spec.rocks && guard++ < 300) {
       const c = Math.floor(rng() * COLS);
       const r = 2 + Math.floor(rng() * (ROWS - 4));
@@ -132,6 +150,7 @@ export class Game {
       // keep pockets a respectful distance from the player start
       if (Math.abs(mc - PLAYER.SPAWN_C) < 3 && Math.abs(mr - PLAYER.SPAWN_R) < 4) continue;
       if (cells.some(([cc, rr]) => cc === PLAYER.SPAWN_C && rr <= PLAYER.SPAWN_R + 1)) continue;
+      if (cells.some(([cc, rr]) => this.world.isOpen(cc, rr))) continue;
       return cells;
     }
     return [[1, 12], [2, 12], [3, 12]]; // deterministic fallback
@@ -222,7 +241,12 @@ export class Game {
         break;
 
       case 'INTRO':
-        if (this.stateT > 1.8) this.setState('PLAY');
+        if (!this.player.entranceStep()) {
+          this.audio.setWalking(true);
+        } else if (this.stateT > 1.8) {
+          this.audio.setWalking(false);
+          this.setState('PLAY');
+        }
         break;
 
       case 'PLAY':
@@ -242,6 +266,7 @@ export class Game {
           this.lives--;
           if (this.lives > 0) {
             this.player.respawn();
+            this.player.beginEntrance();
             this.enemies.forEach(e => e.resetToSpawn());
             this.pump.reset();
             this.lastEnemyTimer = ENEMY.FLEE_DELAY;
@@ -296,6 +321,7 @@ export class Game {
 
     // the last survivor gives up and flees to the surface
     const alive = this.enemies.filter(e => e.state !== 'pop' && e.state !== 'crushed');
+    this.audio.setPanic(alive.length === 1);
     if (alive.length === 1 && !alive[0].fleeing) {
       this.lastEnemyTimer -= dt;
       if (this.lastEnemyTimer <= 0) alive[0].fleeing = true;
@@ -306,7 +332,7 @@ export class Game {
     // bonus item
     if (!this.fruitSpawned && this.rocksFallen >= ROCKS_FOR_BONUS) {
       this.fruitSpawned = true;
-      const tier = Math.min(this.round - 1, FRUITS.length - 1);
+      const tier = fruitTier(this.round);
       this.fruit = new Fruit(this, colX(PLAYER.SPAWN_C), rowY(PLAYER.SPAWN_R), tier);
       this.audio.sfxFruit();
     }
@@ -314,6 +340,7 @@ export class Game {
     // round clear
     if (this.enemies.length === 0) {
       this.audio.setWalking(false);
+      this.audio.setPanic(false);
       this.audio.sfxClear();
       this.setState('CLEAR');
     }
@@ -396,9 +423,10 @@ export class Game {
     drawSprite(ctx, SPR.fygar[Math.floor(this.time * 7) % 2], mx - 24, 192, { flipH: flip });
 
     if (Math.floor(this.time * 1.6) % 2 === 0) {
-      drawTextC(ctx, 'PUSH ENTER KEY', LOGICAL_W / 2, 216, '#fff', 1);
+      drawTextC(ctx, 'ENTER OR TAP START', LOGICAL_W / 2, 216, '#fff', 1);
     }
     drawTextC(ctx, 'ARROWS: MOVE   SPACE: PUMP', LOGICAL_W / 2, 244, '#787890');
+    drawTextC(ctx, 'TAP PUMP REPEATEDLY', LOGICAL_W / 2, 252, '#787890');
     drawTextC(ctx, 'ORIGINAL ASSETS - A FAN HOMAGE', LOGICAL_W / 2, 262, '#444');
     drawTextC(ctx, 'NOT AFFILIATED WITH NAMCO', LOGICAL_W / 2, 270, '#444');
   }

@@ -33,8 +33,17 @@ export class Rock {
     } else if (this.state === 'wobble') {
       this.t += dt;
       if (this.t > ROCK.WOBBLE) {
-        this.state = 'fall';
-        w.openCell(this.c, this.r, true); // vacated cell becomes tunnel
+        const p = this.game.player;
+        const playerHolding = !p.dead && Math.abs(p.x - this.x) < 8 &&
+          p.y > this.y && p.y - this.y <= CELL + 5;
+        if (!playerHolding) {
+          this.state = 'fall';
+          w.openCell(this.c, this.r, true); // vacated cell becomes tunnel
+        } else {
+          // The arcade lets Dig Dug brace a loosened rock, then release it by
+          // turning away. Keep a subtle wobble alive as the warning.
+          this.t = ROCK.WOBBLE - 0.12;
+        }
       }
     } else if (this.state === 'fall') {
       this.y += ROCK.FALL_SPEED;

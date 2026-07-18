@@ -43,6 +43,7 @@ export class Enemy {
     this.crushT = 0;
     this.lastCellKey = '';
     if (this.flame !== undefined) this.flame = null;
+    if (this.fireCd !== undefined) this.fireCd = rand(FYGAR.FIRE_COOLDOWN_MIN, FYGAR.FIRE_COOLDOWN_MAX);
   }
 
   get deadly() { return this.state === 'walk' || this.state === 'ghost'; }
@@ -51,7 +52,7 @@ export class Enemy {
   speed() {
     let s = ENEMY.SPEED * this.game.spec.speedScale *
       (1 + this.game.enemiesKilled * ENEMY.AGGRO_PER_KILL);
-    if (this.fleeing) s *= 1.25;
+    if (this.fleeing) s *= 1.75;
     return s;
   }
 
@@ -67,20 +68,40 @@ export class Enemy {
     return DIRS.filter(d => this.canEnter(c + DIRV[d][0], r + DIRV[d][1]));
   }
 
+  pathDistance(sc, sr, tc, tr) {
+    if (sc === tc && sr === tr) return 0;
+    const seen = new Uint8Array(COLS * ROWS);
+    const q = [[sc, sr, 0]];
+    seen[sr * COLS + sc] = 1;
+    for (let i = 0; i < q.length; i++) {
+      const [c, r, n] = q[i];
+      for (const d of DIRS) {
+        const [dx, dy] = DIRV[d];
+        const nc = c + dx, nr = r + dy;
+        if (!this.canEnter(nc, nr) || seen[nr * COLS + nc]) continue;
+        if (nc === tc && nr === tr) return n + 1;
+        seen[nr * COLS + nc] = 1;
+        q.push([nc, nr, n + 1]);
+      }
+    }
+    return 999;
+  }
+
   choose(c, r) {
     const opts = this.options(c, r);
     if (!opts.length) return;
     const nonRev = opts.filter(d => d !== OPP[this.dir]);
     const pool = nonRev.length ? nonRev : opts;
-    if (!this.fleeing && Math.random() < 0.22) { // wander
+    if (!this.fleeing && Math.random() < 0.16) { // small arcade-style feint
       this.dir = pool[Math.floor(Math.random() * pool.length)];
       return;
     }
     const t = this.target();
+    const [tc, tr] = cellOf(t.x, t.y);
     let best = pool[0], bestD = Infinity;
     for (const d of pool) {
       const [dx, dy] = DIRV[d];
-      const dd = Math.hypot(colX(c + dx) - t.x, rowY(r + dy) - t.y);
+      const dd = this.pathDistance(c + dx, r + dy, tc, tr);
       if (dd < bestD) { bestD = dd; best = d; }
     }
     this.dir = best;

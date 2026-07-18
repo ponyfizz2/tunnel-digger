@@ -1,6 +1,6 @@
 // Score strip (top), lives / round / bonus-item indicators (bottom).
 
-import { LOGICAL_W, LOGICAL_H, FRUITS } from './config.js';
+import { LOGICAL_W, LOGICAL_H, fruitTier } from './config.js';
 import { SPR, drawText, drawTextC } from './sprites.js';
 
 export function drawHUD(ctx, game) {
@@ -17,7 +17,7 @@ export function drawHUD(ctx, game) {
   for (let i = 0; i < Math.min(lives, 6); i++) {
     ctx.drawImage(SPR.player[0], 2 + i * 10, LOGICAL_H - 8, 8, 8);
   }
-  const tier = Math.min(game.round - 1, FRUITS.length - 1);
+  const tier = fruitTier(game.round);
   const fr = SPR.fruits[tier];
   ctx.drawImage(fr, LOGICAL_W / 2 - 4, LOGICAL_H - 9, 8, 8);
   const rs = 'ROUND ' + game.round;
