@@ -10,8 +10,9 @@ export const ROWS = 16;      // row 0 = surface lane (sky). rows 1..15 = dirt.
 export const FIELD_Y = 24;   // playfield starts below the score HUD
 
 export const PLAYER = {
-  SPEED: 0.72,          // px per 1/60s tick
-  DIG_FACTOR: 0.6,      // speed multiplier while carving fresh dirt
+  SPEED: 0.82,          // px per 1/60s tick
+  DIG_FACTOR: 0.72,     // speed multiplier while carving fresh dirt
+  TURN_GRACE: 5,        // px from a lane centre where a queued turn may snap
   SPAWN_C: 6,
   SPAWN_R: 7,
   DEATH_TIME: 1.5,      // seconds of death animation
@@ -19,22 +20,24 @@ export const PLAYER = {
 };
 
 export const PUMP = {
-  SPEED: 3.4,           // harpoon extension px/tick
-  RETRACT: 7,
-  RANGE: 42,            // max harpoon length (~2.6 cells)
-  INTERVAL: 0.28,       // seconds per inflation stage while fire is held
-  DEFLATE: 0.6,         // seconds per stage lost after release
+  SPEED: 4.2,           // harpoon extension px/tick
+  RETRACT: 8,
+  RANGE: 48,            // three cells, close to the arcade reach
+  LATCH_TIME: 0.72,     // time to tap the next pump before the hose retracts
+  HOLD_DELAY: 0.38,     // accessibility: holding starts a slower auto-pump
+  HOLD_INTERVAL: 0.34,
+  DEFLATE: 0.8,         // seconds per stage lost after the hose disconnects
   STAGES: 4,            // pumps needed to pop
 };
 
 export const ENEMY = {
-  SPEED: 0.5,
-  GHOST_SPEED: 0.36,
+  SPEED: 0.48,
+  GHOST_SPEED: 0.39,
   GHOST_MIN: 5,         // seconds until an enemy may go ghost
   GHOST_MAX: 11,
   GHOST_MIN_TIME: 1.0,  // minimum seconds spent as eyes
   STUCK_FACTOR: 3,      // ghost timer runs this much faster in a dead end
-  FLEE_DELAY: 4,        // last survivor flees after this many seconds
+  FLEE_DELAY: 0.9,      // brief warning before the last survivor flees
   AGGRO_PER_KILL: 0.07, // speed bonus per enemy killed this round
 };
 
@@ -66,27 +69,46 @@ export const SCORING = {
 };
 
 export const FRUITS = [
-  { name: 'CARROT',    value: 400  },
-  { name: 'TURNIP',    value: 600  },
-  { name: 'MUSHROOM',  value: 800  },
-  { name: 'CUCUMBER',  value: 1000 },
-  { name: 'EGGPLANT',  value: 1500 },
-  { name: 'PEPPER',    value: 2000 },
-  { name: 'TOMATO',    value: 4000 },
-  { name: 'PINEAPPLE', value: 8000 },
+  { name: 'CARROT',     value: 400,  firstRound: 1  },
+  { name: 'TURNIP',     value: 600,  firstRound: 2  },
+  { name: 'MUSHROOM',   value: 800,  firstRound: 3  },
+  { name: 'CUCUMBER',   value: 1000, firstRound: 4  },
+  { name: 'EGGPLANT',   value: 2000, firstRound: 6  },
+  { name: 'PEPPER',     value: 3000, firstRound: 8  },
+  { name: 'TOMATO',     value: 4000, firstRound: 10 },
+  { name: 'GARLIC',     value: 5000, firstRound: 12 },
+  { name: 'WATERMELON', value: 6000, firstRound: 14 },
+  { name: 'GALAXIAN',   value: 7000, firstRound: 16 },
+  { name: 'PINEAPPLE',  value: 8000, firstRound: 18 },
 ];
 export const ROCKS_FOR_BONUS = 2;  // dropped rocks before the bonus item appears
 export const FRUIT_TIME = 10;      // seconds the bonus item stays
 
+export function fruitTier(round) {
+  let tier = 0;
+  for (let i = 1; i < FRUITS.length; i++) {
+    if (round < FRUITS[i].firstRound) break;
+    tier = i;
+  }
+  return tier;
+}
+
 // Difficulty curve per round.
 export function roundSpec(round) {
   const r = round - 1;
+  const early = [
+    [3, 1, 3], // the arcade opening round
+    [3, 2, 3],
+    [4, 2, 3],
+    [4, 3, 4],
+    [5, 3, 4],
+  ][Math.min(r, 4)];
   return {
-    pookas: Math.min(5, 2 + Math.ceil(r / 2)),
-    fygars: Math.min(3, 1 + Math.floor(r / 3)),
-    rocks:  Math.min(6, 4 + Math.floor(r / 2)),
-    speedScale: 1 + Math.min(0.55, r * 0.06),
-    fireEagerness: Math.min(0.6, r * 0.06),
+    pookas: early[0],
+    fygars: early[1],
+    rocks: early[2],
+    speedScale: 1 + Math.min(0.62, r * 0.055),
+    fireEagerness: Math.min(0.7, r * 0.055),
   };
 }
 

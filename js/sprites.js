@@ -210,7 +210,7 @@ const rock = sprite([
   '................',
 ], { E: '#f0d8a8' });
 
-// --- bonus vegetables / fruits (8 tiers)
+// --- bonus vegetables / fruits (the arcade's full 11-tier progression)
 const fruits = [
   sprite([ // carrot
     '....GG....',
@@ -281,6 +281,36 @@ const fruits = [
     '.RERRRRRR.',
     '..RRRRRR..',
     '...RRRR...',
+  ]),
+  sprite([ // garlic
+    '....GG....',
+    '...GG.....',
+    '..EEEE....',
+    '.EEEEEEE..',
+    'EEEEEEEEE.',
+    'EEEEEEEEE.',
+    '.EEEEEEE..',
+    '..EE.EE...',
+  ]),
+  sprite([ // watermelon
+    '....GGG....',
+    '..GGGGGGG..',
+    '.GGLLLLLGG.',
+    'GLLRRRRRLLG',
+    'GLRRKRRKRLG',
+    'GLRRRRRRRLG',
+    '.GLRRRRRLG.',
+    '..GGLLLGG..',
+  ]),
+  sprite([ // starship bonus, an original geometric homage
+    '....B.....',
+    '...BBB....',
+    '..BWBWB...',
+    '.BBBBBBB..',
+    'BBBRRRBBB.',
+    '.BBBBBBB..',
+    '..B.B.B...',
+    '.B.....B..',
   ]),
   sprite([ // pineapple
     '..G.G.G...',

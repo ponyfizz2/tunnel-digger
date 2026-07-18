@@ -17,14 +17,22 @@ const game = new Game(ctx, audio, input, () => scanDiv.classList.toggle('on'));
 window.game = game; // console access for debugging
 
 function resize() {
+  const touchUI = matchMedia('(pointer: coarse), (max-width: 700px)').matches;
+  const reserved = touchUI ? 142 : 30;
   const scale = Math.max(1, Math.floor(Math.min(
     window.innerWidth / LOGICAL_W,
-    (window.innerHeight - 30) / LOGICAL_H,
+    (window.innerHeight - reserved) / LOGICAL_H,
   )));
   canvas.style.width = LOGICAL_W * scale + 'px';
   canvas.style.height = LOGICAL_H * scale + 'px';
 }
 window.addEventListener('resize', resize);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && game.state === 'PLAY') {
+    audio.setWalking(false);
+    game.setState('PAUSE');
+  }
+});
 resize();
 
 const STEP = 1 / 60;

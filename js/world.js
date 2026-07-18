@@ -18,7 +18,12 @@ export const OPP = { left: 'right', right: 'left', up: 'down', down: 'up' };
 export const DIRS = ['left', 'right', 'up', 'down'];
 
 // dirt strata, light to deep (arcade-style layered earth tones)
-const STRATA = ['#f0b060', '#e07828', '#c84818', '#963010'];
+const PALETTES = [
+  ['#f0b060', '#e07828', '#c84818', '#963010'],
+  ['#f0b060', '#d87838', '#a84838', '#703048'],
+  ['#e8b868', '#c88038', '#986028', '#704020'],
+  ['#d8a878', '#b87058', '#884840', '#582838'],
+];
 
 // ---------------------------------------------------------------------------
 // Shared lane movement. Entities live on 16px lanes; moving along one axis
@@ -62,15 +67,16 @@ export class World {
     this.onOpen = null; // set by the game: scoring + dig SFX
   }
 
-  reset() {
+  reset(round = 1) {
     this.open.fill(0);
     for (let c = 0; c < COLS; c++) this.open[c] = 1; // surface lane
     const g = this.g;
     g.globalCompositeOperation = 'source-over';
     g.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
     // paint the four strata
+    const colors = PALETTES[Math.floor((round - 1) / 4) % PALETTES.length];
     for (let r = 1; r < ROWS; r++) {
-      g.fillStyle = STRATA[stratum(r)];
+      g.fillStyle = colors[stratum(r)];
       g.fillRect(0, FIELD_Y + r * CELL, LOGICAL_W, CELL);
     }
     // subtle texture dots

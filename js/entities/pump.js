@@ -20,6 +20,8 @@ export class Pump {
     this.dir = 'right';
     this.enemy = null;
     this.holdT = 0;
+    this.autoNext = PUMP.HOLD_DELAY;
+    this.latchT = 0;
   }
 
   get busy() { return this.state !== 'idle'; }
@@ -46,12 +48,18 @@ export class Pump {
     if (this.state === 'extend') {
       this.len += PUMP.SPEED;
       const tx = p.x + dx * this.len, ty = p.y + dy * this.len;
-      // enemy hit?
+      // Enemy hit: test the full new hose segment, not only its tip. This
+      // prevents fast extension from skipping across a sprite.
       for (const e of this.game.enemies) {
-        if (e.pumpable && Math.hypot(e.x - tx, e.y - ty) < 9) {
+        const along = (e.x - p.x) * dx + (e.y - p.y) * dy;
+        const across = Math.abs((e.x - p.x) * dy - (e.y - p.y) * dx);
+        if (e.pumpable && along >= 4 && along <= this.len + 7 && across < 8) {
           this.enemy = e;
           this.state = 'attached';
           this.holdT = 0;
+          this.autoNext = PUMP.HOLD_DELAY;
+          this.latchT = 0;
+          this.len = Math.max(4, along);
           if (e.stage === 0) {
             e.state = 'inflated';
             e.stage = 1;
@@ -75,18 +83,39 @@ export class Pump {
         this.state = 'retract';
         return;
       }
-      if (this.game.input.down('fire')) {
-        e.beingPumped = true;
-        e.deflateT = 0;
+      e.beingPumped = true;
+      e.deflateT = 0;
+      const down = this.game.input.down('fire');
+      const tapped = this.game.input.pressed('fire');
+      let addStage = false;
+      if (tapped) {
+        addStage = true;
+        this.holdT = 0;
+        this.autoNext = PUMP.HOLD_DELAY;
+      } else if (down) {
         this.holdT += dt;
-        if (this.holdT >= PUMP.INTERVAL) {
-          this.holdT = 0;
-          e.inflate(); // may pop (game.popEnemy) which changes e.state
-          if (e.state === 'inflated') this.game.audio.sfxPump(e.stage);
+        if (this.holdT >= this.autoNext) {
+          addStage = true;
+          this.autoNext += PUMP.HOLD_INTERVAL;
         }
-        if (this.enemy) this.len = Math.hypot(e.x - p.x, e.y - p.y);
       } else {
-        this.enemy = null;   // released: enemy starts deflating on its own
+        this.holdT = 0;
+        this.autoNext = PUMP.HOLD_DELAY;
+      }
+
+      if (addStage) {
+        this.latchT = 0;
+        e.inflate(); // may pop (game.popEnemy) which changes e.state
+        if (e.state === 'inflated') this.game.audio.sfxPump(e.stage);
+      } else if (down) {
+        this.latchT = 0;
+      } else {
+        this.latchT += dt;
+      }
+
+      if (this.enemy) this.len = Math.hypot(e.x - p.x, e.y - p.y);
+      if (this.latchT > PUMP.LATCH_TIME || this.len > PUMP.RANGE + 8) {
+        this.enemy = null;
         this.state = 'retract';
       }
 
